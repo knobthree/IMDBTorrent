@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "IMDBTorrent",
-  "version": "1.0",
+  "version": "1.0.0",
   "description": "Adds a nice button to IMDB",
   "icons": { "128": "icons/icon128.png" },
   "host_permissions": ["https://apibay.org/*"],
