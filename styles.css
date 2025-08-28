@@ -1,0 +1,64 @@
+/* Our block that sits at the top of the right CTA column */
+#imdbh-rightcol-block.imdbh-rightcol-block{
+  display: block;
+  margin: 0 0 10px 0;
+}
+
+/* The injected button; neutral style that fits IMDb spacing */
+#imdbh-open-btn.imdbh-btn{
+  width: 100%;
+  display: inline-block;
+  padding: 10px 14px;
+  font: inherit;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+#imdbh-open-btn.imdbh-btn:hover{
+  background: #eee;
+}
+
+/* Popup */
+#imdb-helper-popup{
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 780px;
+  max-width: calc(100vw - 32px);
+  max-height: 60vh;
+  display: none;
+  background: #111;
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  overflow: hidden;
+  z-index: 2147483000;
+}
+
+#imdb-helper-popup .imdbh-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #222;
+  font-weight: 600;
+}
+
+#imdb-helper-popup .imdbh-close{
+  background: transparent;
+  color: #aaa;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+#imdb-helper-popup .imdbh-close:hover{ color: #fff; }
+
+#imdb-helper-popup .imdbh-body{
+  padding: 12px;
+  overflow: auto;
+  max-height: calc(60vh - 44px);
+}
