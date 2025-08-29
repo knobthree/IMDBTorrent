@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "IMDBTorrent0",
+  "name": "IMDBTorrent",
   "version": "1.0.0",
   "description": "Adds a nice button to IMDB",
   "icons": { "128": "icons/icon128.png" },
@@ -31,7 +31,7 @@
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "imdbtorrent0@youraddon.local",
+      "id": "imdbtorrent@youraddon.local",
       "strict_min_version": "109.0"
     }
   }
