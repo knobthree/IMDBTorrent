@@ -277,4 +277,25 @@ const TorrentSearch = (() => {
     return { search, magnetFrom };
 })();
 
-const fetchExt = (url, opts) => chrome.runtime.sendMessage({ t: "fetch", url, opts });
+//const fetchExt = (url, opts) => chrome.runtime.sendMessage({ t: "fetch", url, opts });
+
+// drop-in replacement for your existing fetchExt:
+const fetchExt = (url, opts) => {
+  const msg = { t: "fetch", url, opts };
+  try {
+    // Chrome MV3 returns a Promise here
+    const maybe = chrome.runtime.sendMessage(msg);
+    if (maybe && typeof maybe.then === "function") return maybe;
+
+    // Firefox MV2 uses callbacks → wrap in a Promise
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(msg, (resp) => {
+        if (chrome.runtime.lastError) return reject(chrome.runtime.lastError);
+        resolve(resp);
+      });
+    });
+  } catch (e) {
+    return Promise.reject(e);
+  }
+};
+
