@@ -1,0 +1,38 @@
+{
+  "manifest_version": 2,
+  "name": "IMDBTorrent",
+  "version": "1.0.1",
+  "description": "Adds a nice button to IMDB",
+  "icons": { "128": "icons/icon128.png" },
+
+  "permissions": [
+    "activeTab",
+    "https://apibay.org/*",
+	"tabs"
+  ],
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.imdb.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "browser_action": {
+    "default_title": "Torrent this IMDB movie"
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "imdbtorrent@youraddon.local",
+      "strict_min_version": "109.0"
+    }
+  }
+}
