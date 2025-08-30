@@ -12,6 +12,10 @@
 // @license      MIT
 // ==/UserScript==
 
+// ==OpenUserJS==
+// @author KnobThree
+// ==/OpenUserJS==
+
 /* === Inject original styles.css verbatim === */
 (function(){
   const css = `
