@@ -75,8 +75,17 @@
 	  if(!el)return;
 	  return el.innerText;
   }
+  
+  //something is causing need for debounce when pressing the extension button ...
+  let lastCallStamp = 0;
 
-  function openPopup() {
+  function openPopup()
+  {
+	const now = Date.now();
+	if (now - lastCallStamp < 100) return;
+	lastCallStamp = now;
+	  
+	  
     const panel = ensurePopup();
     panel.style.display = "block";
 	
@@ -162,13 +171,20 @@ const TorrentSearch = (() => {
     };
 
     const log = (el, msg) => {
+		console.log(log);
         const line = document.createElement("div");
         line.textContent = msg;
         el.appendChild(line);
     };	
 
 	const renderResults = (logEl, results) => {
-		//logEl.innerHTML = ""; // clear old
+		
+		if(results.length > 0) {
+			//logEl.innerHTML = ""; // clear loggy logs
+			const divs = logEl.querySelectorAll("div");
+			divs.forEach(d => d.remove());
+		}
+		
 		
 		
 		//sort so that results with matching IMDB id are first as long as results have over x seeds.
@@ -224,77 +240,91 @@ const TorrentSearch = (() => {
 	};
 
 
-async function internalSearch(query, logEl) {
-  const openTPBLink = document.createElement("a");
-  openTPBLink.href = `https://thepiratebay.org/search.php?q=${encodeURIComponent(query)}&cat=200`;
-  openTPBLink.target = "_blank";
-  openTPBLink.textContent = 'Open search page';
-  logEl.appendChild(openTPBLink);
+	async function internalSearch(query, logEl) {
 
-  log(logEl, `[TorrentSearch] Query: "${query}"`);
+	  log(logEl, `[TorrentSearch] Query: "${query}"`);
 
-  const fullUrl = `${BASE_URL}q.php?q=${encodeURIComponent(query)}&cat=200`;
-  log(logEl, `[TorrentSearch] GET ${fullUrl}`);
+	  const fullUrl = `${BASE_URL}q.php?q=${encodeURIComponent(query)}&cat=200`;
+	  log(logEl, `[TorrentSearch] GET ${fullUrl}`);
 
-  let json;
-  try {
-    const res = await fetchExt(fullUrl, { method: "GET" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.body;
-    console.log(text);
-    // apibay sometimes returns "null" for no results
-    json = text && text.trim() !== "null" ? JSON.parse(text) : [];
-  } catch (e) {
-    log(logEl, `[TorrentSearch] ERROR: ${e.message}`);
-    throw e;
-  }
+	  let json;
+	  try {
+		const res = await fetchExt(fullUrl, { method: "GET" });
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const text = await res.body;
+		console.log(text);
+		// apibay sometimes returns "null" for no results
+		json = text && text.trim() !== "null" ? JSON.parse(text) : [];
+	  } catch (e) {
+		log(logEl, `[TorrentSearch] ERROR: ${e.message}`);
+		throw e;
+	  }
 
-  log(logEl, `[TorrentSearch] Results: ${json.length}`);
-
-  // Normalize + add magnet
-  return json.map(r => ({
-    id: parseInt(r.id, 10),
-    name: r.name,
-    info_hash: r.info_hash,
-    leechers: parseInt(r.leechers, 10),
-    seeders: parseInt(r.seeders, 10),
-    num_files: parseInt(r.num_files, 10),
-    size: parseInt(r.size, 10),
-    username: r.username,
-    added: parseInt(r.added, 10),
-    status: r.status,
-    category: parseInt(r.category, 10),
-    imdb: r.imdb,
-    get MagnetLink() { return magnetFrom(this.info_hash, this.name); }
-  }));
-}
+	  log(logEl, `[TorrentSearch] Results: ${json.length}`);
+	  
 
 
-// Original search now runs one or two internal searches, combines, then renders.
-async function search(logSelector, query, query2) {
-  const logEl = getLogEl(logSelector);
+	  // Normalize + add magnet
+	  let result = json.map(r => ({
+		id: parseInt(r.id, 10),
+		name: r.name,
+		info_hash: r.info_hash,
+		leechers: parseInt(r.leechers, 10),
+		seeders: parseInt(r.seeders, 10),
+		num_files: parseInt(r.num_files, 10),
+		size: parseInt(r.size, 10),
+		username: r.username,
+		added: parseInt(r.added, 10),
+		status: r.status,
+		category: parseInt(r.category, 10),
+		imdb: r.imdb,
+		get MagnetLink() { return magnetFrom(this.info_hash, this.name); }
+	  }));
+	  
+	   logEl.appendChild(
+		  document.createTextNode(
+			"Open search page: "
+	     )
+	  );
+	  
+	  const openTPBLink = document.createElement("a");
+	  openTPBLink.href = `https://thepiratebay.org/search.php?q=${encodeURIComponent(query)}&cat=200`;
+	  openTPBLink.target = "_blank";
+	  openTPBLink.textContent = query + " (" + result.length+" result"+ (result.length == 1 ? "" : "s") +")";
+	  //openTPBLink.classList.add("novisited");
+	  openTPBLink.style.color = "blue";
+	  logEl.appendChild(openTPBLink);
+	  logEl.appendChild(document.createElement("br"));
+	  
+	  return result;
+	}
 
-  const res1 = await internalSearch(query, logEl);
-  let combined = res1;
 
-  if (query2 && query2 !== query) {
-    const res2 = await internalSearch(query2, logEl);
+	// Original search now runs one or two internal searches, combines, then renders.
+	async function search(logSelector, query, query2) {
+	  const logEl = getLogEl(logSelector);
 
-    // Dedupe by id (fallback to info_hash)
-    const map = new Map();
-    for (const r of [...res1, ...res2]) {
-      const key = Number.isFinite(r.id) ? `id:${r.id}` : `hash:${r.info_hash}`;
-      if (!map.has(key)) map.set(key, r);
-    }
-    combined = Array.from(map.values());
-  }
+	  const res1 = await internalSearch(query, logEl);
+	  let combined = res1;
 
-  // Optional: sort by seeders desc; comment out if you want raw order
-  // combined.sort((a, b) => (b.seeders|0) - (a.seeders|0));
+	  if (query2 && query2 !== query) {
+		const res2 = await internalSearch(query2, logEl);
 
-  renderResults(logEl, combined);
-  return combined;
-}
+		// Dedupe by id (fallback to info_hash)
+		const map = new Map();
+		for (const r of [...res1, ...res2]) {
+		  const key = Number.isFinite(r.id) ? `id:${r.id}` : `hash:${r.info_hash}`;
+		  if (!map.has(key)) map.set(key, r);
+		}
+		combined = Array.from(map.values());
+	  }
+
+	  // Optional: sort by seeders desc; comment out if you want raw order
+	  // combined.sort((a, b) => (b.seeders|0) - (a.seeders|0));
+
+	  renderResults(logEl, combined);
+	  return combined;
+	}
 
   // FIX: expose the API so TorrentSearch.search works
   return { search, internalSearch, renderResults, getLogEl, magnetFrom };
