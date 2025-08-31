@@ -65,7 +65,7 @@
 	  
 	  const match = document.documentElement.innerHTML.match(/"titleText":\{"text":"(.*?)"/);
 	  if (match) {
-	     console.log("SPECIAL FIND"+match[1]); // → Desire
+	     console.log("SPECIAL FIND "+match[1]); // → Desire
 		 return match[1];
 	  }
 	  else console.log("NO SPECIAL FIND");
@@ -80,14 +80,14 @@
     const panel = ensurePopup();
     panel.style.display = "block";
 	
-	let movieName = getCurrentMovieName();
-	if(!movieName){
-		log("Error: Cannot get name of movie. Are you looking at page of one?");
-		return;
-	}
-	
-	
-	TorrentSearch.search(movieName, "[class='imdbh-body']");
+    let movieName = getCurrentMovieName();
+    if(!movieName){
+      log("Error: Cannot get name of movie. Are you looking at page of one?");
+      return;
+    }
+    
+    
+    TorrentSearch.search("[class='imdbh-body']", movieName, currentPageImdbId);
   }
 
   function boot(){
@@ -121,10 +121,10 @@
   }
   
   const log = (msg) => {
-	const el = document.querySelector("[class='imdbh-body']");
-	const line = document.createElement("div");
-	line.textContent = msg;
-	el.appendChild(line);
+    const el = document.querySelector("[class='imdbh-body']");
+    const line = document.createElement("div");
+    line.textContent = msg;
+    el.appendChild(line);
   };
 
 })();
@@ -224,66 +224,81 @@ const TorrentSearch = (() => {
 	};
 
 
-    async function search(query, logSelector) {
-        const logEl = getLogEl(logSelector);
-		
-		const openTPBLink = document.createElement("a");
-		openTPBLink.href = `https://thepiratebay.org/search.php?q=${encodeURIComponent(query)}`;
-		openTPBLink.target = "_blank";
-		openTPBLink.textContent = 'Open search page';
-		logEl.appendChild(openTPBLink);
-		
-        log(logEl, `[TorrentSearch] Query: "${query}"`);
+async function internalSearch(query, logEl) {
+  const openTPBLink = document.createElement("a");
+  openTPBLink.href = `https://thepiratebay.org/search.php?q=${encodeURIComponent(query)}&cat=200`;
+  openTPBLink.target = "_blank";
+  openTPBLink.textContent = 'Open search page';
+  logEl.appendChild(openTPBLink);
 
-        const fullUrl = `${BASE_URL}q.php?q=${encodeURIComponent(query)}`;
-        log(logEl, `[TorrentSearch] GET ${fullUrl}`);
+  log(logEl, `[TorrentSearch] Query: "${query}"`);
 
-        let json;
-        try {
-            const res = await fetchExt(fullUrl, { method: "GET" });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const text = await res.body;
-			console.log(text);
-            // apibay sometimes returns "null" for no results
-            json = text && text.trim() !== "null" ? JSON.parse(text) : [];
-        } catch (e) {
-            log(logEl, `[TorrentSearch] ERROR: ${e.message}`);
-            throw e;
-        }
+  const fullUrl = `${BASE_URL}q.php?q=${encodeURIComponent(query)}&cat=200`;
+  log(logEl, `[TorrentSearch] GET ${fullUrl}`);
 
-        log(logEl, `[TorrentSearch] Results: ${json.length}`);
+  let json;
+  try {
+    const res = await fetchExt(fullUrl, { method: "GET" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.body;
+    console.log(text);
+    // apibay sometimes returns "null" for no results
+    json = text && text.trim() !== "null" ? JSON.parse(text) : [];
+  } catch (e) {
+    log(logEl, `[TorrentSearch] ERROR: ${e.message}`);
+    throw e;
+  }
 
-        // Normalize types similar to your C# class + add magnet
-        const results = json.map(r => ({
-            id: parseInt(r.id, 10),
-            name: r.name,
-            info_hash: r.info_hash,
-            leechers: parseInt(r.leechers, 10),
-            seeders: parseInt(r.seeders, 10),
-            num_files: parseInt(r.num_files, 10),
-            size: parseInt(r.size, 10),
-            username: r.username,
-            added: parseInt(r.added, 10),
-            status: r.status,
-            category: parseInt(r.category, 10),
-            imdb: r.imdb,
-            get MagnetLink(){ return magnetFrom(this.info_hash, this.name); }
-        }));
+  log(logEl, `[TorrentSearch] Results: ${json.length}`);
 
-        // Log a preview
-        /*results.slice(0, Math.min(5, results.length)).forEach((r, i) => {
-			let size = r.size/(1024*1024*1024);
-            log(logEl, `  [${size.toFixed(1)} GB Seeds:${r.seeders} ${r.name}`);
-            //log(logEl, `      ${r.MagnetLink}`);
-        });
-        if (results.length > 5) log(logEl, `  ...and ${results.length - 5} more`);*/
-		
-		renderResults(logEl,results);
+  // Normalize + add magnet
+  return json.map(r => ({
+    id: parseInt(r.id, 10),
+    name: r.name,
+    info_hash: r.info_hash,
+    leechers: parseInt(r.leechers, 10),
+    seeders: parseInt(r.seeders, 10),
+    num_files: parseInt(r.num_files, 10),
+    size: parseInt(r.size, 10),
+    username: r.username,
+    added: parseInt(r.added, 10),
+    status: r.status,
+    category: parseInt(r.category, 10),
+    imdb: r.imdb,
+    get MagnetLink() { return magnetFrom(this.info_hash, this.name); }
+  }));
+}
 
-        return results;
+
+// Original search now runs one or two internal searches, combines, then renders.
+async function search(logSelector, query, query2) {
+  const logEl = getLogEl(logSelector);
+
+  const res1 = await internalSearch(query, logEl);
+  let combined = res1;
+
+  if (query2 && query2 !== query) {
+    const res2 = await internalSearch(query2, logEl);
+
+    // Dedupe by id (fallback to info_hash)
+    const map = new Map();
+    for (const r of [...res1, ...res2]) {
+      const key = Number.isFinite(r.id) ? `id:${r.id}` : `hash:${r.info_hash}`;
+      if (!map.has(key)) map.set(key, r);
     }
+    combined = Array.from(map.values());
+  }
 
-    return { search, magnetFrom };
+  // Optional: sort by seeders desc; comment out if you want raw order
+  // combined.sort((a, b) => (b.seeders|0) - (a.seeders|0));
+
+  renderResults(logEl, combined);
+  return combined;
+}
+
+  // FIX: expose the API so TorrentSearch.search works
+  return { search, internalSearch, renderResults, getLogEl, magnetFrom };
+
 })();
 
 //const fetchExt = (url, opts) => chrome.runtime.sendMessage({ t: "fetch", url, opts });
