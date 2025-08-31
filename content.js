@@ -62,6 +62,15 @@
   }
   
   function getCurrentMovieName(){
+	  
+	  const match = document.documentElement.innerHTML.match(/"titleText":\{"text":"(.*?)"/);
+	  if (match) {
+	     console.log("SPECIAL FIND"+match[1]); // → Desire
+		 return match[1];
+	  }
+	  else console.log("NO SPECIAL FIND");
+
+	  
 	  var el = document.querySelector("[data-testid='hero__primary-text']");
 	  if(!el)return;
 	  return el.innerText;
